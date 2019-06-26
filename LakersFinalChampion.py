@@ -15,6 +15,7 @@ class Lakers(sc2.BotAI):
         self.combinedActions = []
         self.enemy_expand_location = None
         self.first_supply_built=False
+        self.stage = "early_rush"
         self.counter_units = {
             #Enemy: [Enemy_Cunts, Army, Num]
             MARINE: [3, SIEGETANK, 1],
@@ -55,14 +56,45 @@ class Lakers(sc2.BotAI):
         #if iteration == 0:
         #    await self.on_game_start()
         #    return
-        await self.main_progress(iteration)
+        cc = self.units(COMMANDCENTER).ready
+        if not cc.exists:
+            self.worker_rush(iteration)
+            return
+      
+        if self.stage == "early_rush":
+            await self.early_rush(iteration)
+            return
+        #await self.main_progress(iteration)
 
+
+    async def early_rush(self, iteration):
+        cc = self.units(COMMANDCENTER).ready
+        #采矿
+        await self.distribute_workers()
+        #造农民
+        await self.train_WORKERS(cc)
+        cc = self.units(COMMANDCENTER).ready
+        #1.房子，第一个堵路口
+        await self.build_rush_SUPPLYDEPOT(cc)
+        
+        #2. 气矿
+        #await self.build_REFINERY(cc)
+        
+        #3. 兵营
+        await self.build_rush_BARRACKS(cc)
+        
+        #4. 枪兵
+        await self.train_MARINE()
+        #5. 坦克
+        await self.train_SIEGETANK()
+        
+        
+        
     # Start
     async def main_progress(self, iteration):
         #await self.worker_rush(iteration)
         await self.worker_detect(iteration)
         #await self.marine_detect(iteration)
-
         cc = self.units(COMMANDCENTER).ready
         if not cc.exists:
             self.worker_rush(iteration)
@@ -148,16 +180,36 @@ class Lakers(sc2.BotAI):
                     if self.can_afford(SCV):
                         await self.do(cc.train(SCV))
 
-    async def build_SUPPLYDEPOT(self, cc):
-        #if self.supply_left <= 10 and self.can_afford(SUPPLYDEPOT) and not self.already_pending(SUPPLYDEPOT): # and not self.first_supply_built:
-        #    supply_placement_positions = self.main_base_ramp.corner_depots
-        #    commander = self.units(COMMANDCENTER)
-        #    supply_placement_positions = {d for d in supply_placement_positions if commander.closest_distance_to(d) > 1}
-        #    target_supply_location = supply_placement_positions.pop()
-        #    await self.build(SUPPLYDEPOT, near=target_supply_location)
-        #    #self.first_supply_built = True
+    async def build_rush_SUPPLYDEPOT(self, cc):
+    #   第一个房子，堵路口
         if self.supply_left <= 10 and self.can_afford(SUPPLYDEPOT) and not self.already_pending(SUPPLYDEPOT): # and not self.first_supply_built:
-            await self.build(SUPPLYDEPOT, near = cc.position.towards(self.game_info.map_center, 8))
+            supply_placement_positions = self.main_base_ramp.corner_depots
+            commander = self.units(COMMANDCENTER)
+            supply_placement_positions = {d for d in supply_placement_positions if commander.closest_distance_to(d) > 1}
+            target_supply_location = supply_placement_positions.pop()
+            await self.build(SUPPLYDEPOT, near=target_supply_location)
+        elif self.units(SUPPLYDEPOT).amount >= 1:
+            #self.build_SUPPLYDEPOT(self, cc)
+            return
+            
+        
+
+    async def build_SUPPLYDEPOT(self, cc):
+        if self.supply_left <= 3 and self.can_afford(SUPPLYDEPOT) and not self.already_pending(SUPPLYDEPOT): # and not self.first_supply_built:
+            #await self.build(SUPPLYDEPOT, near = cc.position.towards(self.game_info.map_center, 8))
+            return
+
+
+    async def build_rush_BARRACKS(self, cc):
+        #双兵营,造在第一个房子附近，一起堵路口
+        if self.units(SUPPLYDEPOT).amount == 1:
+            first_supply = self.units(SUPPLYDEPOT).first
+        
+        if self.units(BARRACKS).amount < 1 and self.can_afford(BARRACKS):
+            await self.build(BARRACKS, near = self.units(SUPPLYDEPOT).random)
+            
+        if self.units(BARRACKS).amount == 1 and self.can_afford(BARRACKS):
+            await self.build(BARRACKS, near = self.units(BARRACKS).first)
 
     async def build_BARRACKS(self, cc):
         if self.units(BARRACKS).amount == 0 and self.can_afford(BARRACKS):
