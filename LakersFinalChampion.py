@@ -261,9 +261,7 @@ class Lakers(sc2.BotAI):
             await self.build(BUNKER, near = cc.position.towards(self.game_info.map_center, 9))
 
     async def build_REFINERY(self, cc):
-        #if self.units(REFINERY).amount < 2 and self.can_afford(REFINERY):
-        #    await self.build(REFINERY, near = cc.position.towards(self.game_info.map_center, 9))
-        if self.units(BARRACKS).exists and self.units(REFINERY).amount < 2 and self.can_afford(REFINERY) and not self.already_pending(REFINERY):
+        if self.units(BARRACKS).exists and self.units(REFINERY).amount < self.units(COMMANDCENTER).amount * 2 and self.can_afford(REFINERY) and not self.already_pending(REFINERY):
             vgs = self.state.vespene_geyser.closer_than(20.0, cc)
             for vg in vgs:
                 if self.units(REFINERY).closer_than(1.0, vg).exists:
@@ -309,6 +307,11 @@ class Lakers(sc2.BotAI):
         if self.units(BANSHEE).amount < 5 and self.can_afford(BANSHEE):
             for bs in self.units(STARPORT).ready:
                 await self.do(bs.train(BANSHEE))
+
+    async def expand_command_center(self, iteration):
+        if self.units(COMMANDCENTER).exists and (self.units(COMMANDCENTER).amount < 2 or (iteration > 400 and self.units(COMMANDCENTER).amount < 3)) and self.can_afford(COMMANDCENTER):
+            location = await self.get_next_expansion()
+            await self.build(COMMANDCENTER, near=location, max_distance=10, random_alternative=False, placement_step=1)
 
 def main():
     sc2.run_game(sc2.maps.get("PortAleksanderLE"), [
