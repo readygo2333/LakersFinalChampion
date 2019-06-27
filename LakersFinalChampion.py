@@ -69,11 +69,12 @@ class Lakers(sc2.BotAI):
 
     async def early_rush(self, iteration):
         cc = self.units(COMMANDCENTER).ready
+        cc = cc.first
         #采矿
         await self.distribute_workers()
         #造农民
         await self.train_WORKERS(cc)
-        cc = self.units(COMMANDCENTER).ready
+
         #1.房子，第一个堵路口
         await self.build_rush_SUPPLYDEPOT(cc)
         
